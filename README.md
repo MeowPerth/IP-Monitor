@@ -1,4 +1,8 @@
 # IP-Monitor
+[![Static Badge](https://img.shields.io/badge/github-repo-blue?logo=github)](https://github.com/MeowPerth/IP-Monitor)
+[![GitHub Issues](https://img.shields.io/github/issues/MeowPerth/IP-Monitor)](https://github.com/MeowPerth/IP-Monitor/issues)
+![Last Commit](https://img.shields.io/github/last-commit/MeowPerth/IP-Monitor)
+![GitHub License](https://img.shields.io/github/license/MeowPerth/IP-Monitor)
 # 功能简介
 基于Python脚本编写，用于监测 IP 是否发生变化，若 IP 变更 即发送邮件进行通知收件人
 <br> 支持 多API，API 失效按顺序使用下一个 API 获取 IP
