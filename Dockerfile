@@ -4,8 +4,10 @@ RUN pip install requests
  
 COPY ip-monitor.py /ip-monitor.py
 
-ENV TZ="Asia/Shanghai"
-ENV API="https://ddns.oray.com/checkip,https://ip.3322.net"
+ENV API="https://api-ipv4.ip.sb/ip,https://v4.ident.me,https://ddns.oray.com/checkip,https://ip.3322.net"
+ENV API_V6="https://api-ipv6.ip.sb/ip,https://v6.ident.me,https://ipv6.icanhazip.com"
+ENV IPV6_ENABLE="false"
+ENV TZ=Asia/Shanghai
 ENV FROM_NAME=
 ENV FROM_EMAIL=
 ENV FROM_EMAIL_PASSWORD=
