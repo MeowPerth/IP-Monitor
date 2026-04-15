@@ -54,15 +54,36 @@ class ENV:
             logger.error(error_msg)
             raise Exception(error_msg)
         
-        # 解析API列表 - 支持多种分隔符（逗号或空格）
-        api_env = os.environ.get("API", "")
-        if api_env:
-            # 支持逗号和空格分隔
-            api_env = api_env.replace(' ', ',')
-            self.api_list = [api.strip() for api in api_env.split(",") if api.strip()]
+        # 解析IPv4 API列表
+        ipv4_api_env = os.environ.get("API", "")
+        if ipv4_api_env:
+            ipv4_api_env = ipv4_api_env.replace(' ', ',')
+            self.api_list = [api.strip() for api in ipv4_api_env.split(",") if api.strip()]
         else:
-            self.api_list = ["https://ddns.oray.com/checkip", "https://ip.3322.net"]
-            logger.info(f"使用默认API列表: {self.api_list}")
+            self.api_list = [
+            	"https://api-ipv4.ip.sb/ip",
+            	"https://v4.ident.me",
+            	"https://ddns.oray.com/checkip", 
+            	"https://ip.3322.net"
+            	]
+            logger.info(f"使用默认IPv4 API列表: {self.api_list}")
+        
+        # IPv6 配置
+        self.ipv6_enable = os.environ.get("IPV6_ENABLE", "false").lower() == "true"
+        
+        # 解析IPv6 API列表
+        ipv6_api_env = os.environ.get("API_V6", "")
+        if ipv6_api_env:
+            ipv6_api_env = ipv6_api_env.replace(' ', ',')
+            self.ipv6_api_list = [api.strip() for api in ipv6_api_env.split(",") if api.strip()]
+        else:
+            self.ipv6_api_list = [
+                "https://api-ipv6.ip.sb/ip",
+                "https://v6.ident.me",
+                "https://ipv6.icanhazip.com"
+            ]
+            if self.ipv6_enable:
+                logger.info(f"使用默认IPv6 API列表: {self.ipv6_api_list}")
         
         self.from_name = os.environ.get("FROM_NAME", "IP监控")
         self.from_email = os.environ.get("FROM_EMAIL")
@@ -80,50 +101,89 @@ class ENV:
         
         logger.info("=" * 50)
         logger.info("环境变量配置完成")
-        logger.info(f"API列表: {self.api_list}")
+        logger.info(f"IPv4 API列表: {self.api_list}")
+        logger.info(f"IPv6 启用状态: {self.ipv6_enable}")
+        if self.ipv6_enable:
+            logger.info(f"IPv6 API列表: {self.ipv6_api_list}")
         logger.info(f"发件邮箱: {self.from_email}")
         logger.info(f"收件邮箱: {self.to_email_list}")
         logger.info(f"检查间隔: {self.interval}秒")
         logger.info("=" * 50)
 
-def current_ip(api_list):
-    ## 获取当前公网IP地址
+def current_ipv4(api_list):
+    ## 获取当前公网IPv4地址
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36"
     }
     
     for api in api_list:
         try:
-            # logger.info(f"尝试从 {api} 获取IP...")
-            # 添加超时设置
-            
             response = requests.get(api, headers=headers, timeout=10)
             if response.status_code == 200:
-                ip_matches = re.findall(r'[0-9]+(?:\.[0-9]+){3}', response.text)
+                # IPv4 正则匹配
+                ip_matches = re.findall(r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)', response.text)
                 if ip_matches:
                     ip = ip_matches[0]
-                    logger.info(f"[成功] {api} 返回IP: {ip}")
+                    logger.info(f"[IPv4成功] {api} 返回IP: {ip}")
                     return ip
                 else:
-                    logger.warning(f"[失败] {api} 返回的内容中没有找到IP地址")
+                    logger.warning(f"[IPv4失败] {api} 返回的内容中没有找到IPv4地址")
             else:
-                logger.warning(f"[失败] {api} 返回状态码: {response.status_code}")
+                logger.warning(f"[IPv4失败] {api} 返回状态码: {response.status_code}")
                 
         except requests.exceptions.Timeout:
-            logger.warning(f"[失败] 请求 {api} 超时")
+            logger.warning(f"[IPv4失败] 请求 {api} 超时")
         except requests.exceptions.ConnectionError:
-            logger.warning(f"[失败] 连接 {api} 失败，请检查网络")
+            logger.warning(f"[IPv4失败] 连接 {api} 失败，请检查网络")
         except requests.exceptions.RequestException as e:
-            logger.warning(f"[失败] 请求 {api} 失败: {str(e)}")
+            logger.warning(f"[IPv4失败] 请求 {api} 失败: {str(e)}")
         except Exception as e:
-            logger.error(f"[错误] 处理 {api} 时发生未知错误: {str(e)}")
+            logger.error(f"[IPv4错误] 处理 {api} 时发生未知错误: {str(e)}")
             continue
     
-    logger.error("[错误] 所有获取公网的API均不可用")
+    logger.error("[IPv4错误] 所有获取公网IPv4的API均不可用")
     return None
 
-def sendmail(old_ip, current_ip, env, is_error=False):
-	## 发送文本邮件
+def current_ipv6(api_list):
+    ## 获取当前公网IPv6地址
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36"
+    }
+    
+    for api in api_list:
+        try:
+            response = requests.get(api, headers=headers, timeout=10)
+            if response.status_code == 200:
+                # IPv6 正则匹配 - 匹配完整的IPv6地址
+                ip_matches = re.findall(r'(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}|:(?::[0-9a-fA-F]{1,4}){1,7}|::|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]+', response.text.strip(), re.IGNORECASE)
+                if ip_matches:
+                    ip = ip_matches[0].strip()
+                    # 过滤掉链路本地地址
+                    if ip.lower().startswith('fe80:'):
+                        logger.warning(f"[IPv6跳过] {api} 返回的是链路本地地址: {ip}")
+                        continue
+                    logger.info(f"[IPv6成功] {api} 返回IP: {ip}")
+                    return ip
+                else:
+                    logger.warning(f"[IPv6失败] {api} 返回的内容中没有找到IPv6地址")
+            else:
+                logger.warning(f"[IPv6失败] {api} 返回状态码: {response.status_code}")
+                
+        except requests.exceptions.Timeout:
+            logger.warning(f"[IPv6失败] 请求 {api} 超时")
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"[IPv6失败] 连接 {api} 失败，可能不支持IPv6网络")
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"[IPv6失败] 请求 {api} 失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"[IPv6错误] 处理 {api} 时发生未知错误: {str(e)}")
+            continue
+    
+    logger.warning("[IPv6警告] 无法获取公网IPv6地址，可能当前网络不支持IPv6")
+    return None
+
+def sendmail(old_ipv4, current_ipv4, old_ipv6, current_ipv6, env, is_error=False):
+    ## 发送文本邮件
     # 发信方的信息
     from_name = env.from_name
     from_addr = env.from_email
@@ -143,7 +203,12 @@ def sendmail(old_ip, current_ip, env, is_error=False):
 【警告】IP检测服务异常
 无法获取公网IP地址，请检查网络连接或API服务。
 
-最后记录的IP地址: {old_ip}
+最后记录的IPv4地址: {old_ipv4 if old_ipv4 else '未知'}
+"""
+        if env.ipv6_enable:
+            content += f"最后记录的IPv6地址: {old_ipv6 if old_ipv6 else '未知'}\n"
+        
+        content += f"""
 异常时间: {current_time}
 
 {env.email_footer}
@@ -153,10 +218,21 @@ def sendmail(old_ip, current_ip, env, is_error=False):
         content = f"""
 {env.email_header}
 
-原IP地址: {old_ip}
-现IP地址: {current_ip}
 变更时间: {current_time}
 
+【IPv4 地址】
+原IP地址: {old_ipv4 if old_ipv4 else '未知'}
+现IP地址: {current_ipv4 if current_ipv4 else '获取失败'}
+"""
+        
+        if env.ipv6_enable:
+            content += f"""
+【IPv6 地址】
+原IP地址: {old_ipv6 if old_ipv6 else '未知'}
+现IP地址: {current_ipv6 if current_ipv6 else '获取失败'}
+"""
+        
+        content += f"""
 {env.email_footer}
         """
     
@@ -192,13 +268,23 @@ def sendmail(old_ip, current_ip, env, is_error=False):
                 pass
     return False
 
-def print_status(old_ip, current_ip, consecutive_failures):
+def print_status(old_ipv4, current_ipv4, old_ipv6, current_ipv6, consecutive_failures, ipv6_enable):
     ## 打印状态信息
     current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     fail_info = f" [连续失败:{consecutive_failures}]" if consecutive_failures > 0 else ""
-    ip_display = current_ip if current_ip else "获取失败"
-    old_ip_display = old_ip if old_ip is not None else "未记录"
-    logger.info(f"[{current_time}] 旧IP: {old_ip_display} | 当前IP: {ip_display}{fail_info}")
+    
+    ipv4_display = current_ipv4 if current_ipv4 else "获取失败"
+    old_ipv4_display = old_ipv4 if old_ipv4 is not None else "未记录"
+    
+    status_msg = f"[{current_time}] IPv4 - 旧: {old_ipv4_display} | 当前: {ipv4_display}"
+    
+    if ipv6_enable:
+        ipv6_display = current_ipv6 if current_ipv6 else "获取失败"
+        old_ipv6_display = old_ipv6 if old_ipv6 is not None else "未记录"
+        status_msg += f"\n[{current_time}] IPv6 - 旧: {old_ipv6_display} | 当前: {ipv6_display}"
+    
+    status_msg += fail_info
+    logger.info(status_msg)
 
 def main():
     ## 主函数
@@ -213,10 +299,13 @@ def main():
         logger.error(f"[错误] 环境变量配置失败: {str(e)}")
         sys.exit(1)
     
-    # 初始旧IP设为空
-    old_ip = None
+    # 初始化IP记录
+    old_ipv4 = None
+    old_ipv6 = None
     
     logger.info("开始IP监控 (首次运行将记录初始IP)")
+    if env.ipv6_enable:
+        logger.info("IPv6检测已启用")
     logger.info("=" * 50)
     
     # 添加重试计数
@@ -226,20 +315,33 @@ def main():
     
     while True:
         try:
-            # 获取当前IP
-            current_ip_addr = current_ip(env.api_list)
+            # 获取当前IPv4
+            current_ipv4_addr = current_ipv4(env.api_list)
+            
+            # 获取当前IPv6（如果启用）
+            current_ipv6_addr = None
+            if env.ipv6_enable:
+                current_ipv6_addr = current_ipv6(env.ipv6_api_list)
             
             # 打印状态
-            print_status(old_ip, current_ip_addr, consecutive_failures)
+            print_status(old_ipv4, current_ipv4_addr, old_ipv6, current_ipv6_addr, consecutive_failures, env.ipv6_enable)
+            
+            # 检查是否至少有一种IP获取成功
+            ipv4_available = current_ipv4_addr is not None
+            ipv6_available = current_ipv6_addr is not None if env.ipv6_enable else True
             
             # 处理获取IP失败的情况
-            if current_ip_addr is None:
+            if not ipv4_available and (env.ipv6_enable and not ipv6_available):
                 consecutive_failures += 1
                 
                 if consecutive_failures >= max_consecutive_failures and not error_email_sent:
                     # 发送告警邮件
                     logger.error("[警告] 连续多次获取IP失败，发送告警邮件")
-                    sendmail(old_ip if old_ip else "未知", "获取失败", env, is_error=True)
+                    sendmail(
+                        old_ipv4 if old_ipv4 else "未知", "获取失败",
+                        old_ipv6 if old_ipv6 else "未知", "获取失败",
+                        env, is_error=True
+                    )
                     error_email_sent = True
                 
                 time.sleep(env.interval)
@@ -249,20 +351,41 @@ def main():
             consecutive_failures = 0
             error_email_sent = False
             
-            # 如果是第一次获取到IP，记录下来
-            if old_ip is None:
-                old_ip = current_ip_addr
-                # logger.info(f"[记录] 初始IP: {old_ip}")
+            # 检查IP是否发生变化
+            ipv4_changed = (old_ipv4 is not None and old_ipv4 != current_ipv4_addr)
+            ipv6_changed = (env.ipv6_enable and old_ipv6 is not None and old_ipv6 != current_ipv6_addr)
             
-            # IP发生变化 - 始终发送邮件
-            elif old_ip != current_ip_addr:
-                # logger.info(f"[变化] IP地址发生改变: {old_ip} -> {current_ip_addr}")
+            # 如果是第一次获取到IP，记录下来
+            if old_ipv4 is None and current_ipv4_addr is not None:
+                old_ipv4 = current_ipv4_addr
+                logger.info(f"[记录] 初始IPv4: {old_ipv4}")
+            
+            if env.ipv6_enable and old_ipv6 is None and current_ipv6_addr is not None:
+                old_ipv6 = current_ipv6_addr
+                logger.info(f"[记录] 初始IPv6: {old_ipv6}")
+            
+            # IP发生变化 - 发送邮件通知
+            if ipv4_changed or ipv6_changed:
+                change_details = []
+                if ipv4_changed:
+                    change_details.append(f"IPv4: {old_ipv4} -> {current_ipv4_addr}")
+                if ipv6_changed:
+                    change_details.append(f"IPv6: {old_ipv6} -> {current_ipv6_addr}")
+                
+                logger.info(f"[变化] IP地址发生改变: {', '.join(change_details)}")
                 
                 # 发送邮件通知
-                send_success = sendmail(old_ip, current_ip_addr, env)
+                send_success = sendmail(
+                    old_ipv4, current_ipv4_addr,
+                    old_ipv6, current_ipv6_addr,
+                    env
+                )
                 
                 # 更新IP
-                old_ip = current_ip_addr
+                if ipv4_changed:
+                    old_ipv4 = current_ipv4_addr
+                if ipv6_changed:
+                    old_ipv6 = current_ipv6_addr
                 
                 if not send_success:
                     logger.error("[警告] 邮件发送失败")
