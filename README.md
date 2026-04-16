@@ -26,7 +26,7 @@ docker run -d \
 --restart=always \
 1114788662/ip-monitor:latest
 ```
-# 所有参数解释：
+# 所有参数解释
 
 | 变量 | 含义 | 
 | --- | --- | 
@@ -48,6 +48,12 @@ docker run -d \
 <br> [20260415]
 <br> 1、新增IPv6监测支持,启用后IPv6后，IPv4和IPv6都无法获取网络地址才会发送错误通知邮件，否则只会发送地址变更通知邮件。
 <br> 2、修改IPv4默认API地址。
-# 注意事项
-<br> 1、若路由器或者设备开启了代理，可能会导致返回的IP地址不正确。
-<br> 2、若IP地址获取不到可以尝试使用host模式。
+<br> [20260416]
+<br> 1、调整邮件内容显示顺序，先显示 New IP 再显示 Old IP 。
+# 注意事项 & 常见问题
+<br> Q1：路由器开启代理（如：OpenClash）后，无法获取到正确的IPv4地址。
+<br>  A：请检查代理路由规则，将API查询用的地址添加到直连规则中即可。
+<br> Q2：路由器开启代理（如：OpenClash）后，无法获取到正确的IPv6地址。
+<br>  A：请检查OpenClash是否使用了Fake-IP模式，这里推荐使用Redir-Host模式，并关闭IPv6代理，启用IPv6 DNS解析，Fake-IP会导致无法获取到正确的IP地址，若Redir-Host模式还是无法获取到正确IP请检查路由规则。
+<br> Q3：容器使用bridge网络时无法获取到IPv6地址。
+<br>  A：请检查bridge网络是否支持IPv6，或直接使用host网络。
