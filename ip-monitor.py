@@ -221,15 +221,15 @@ def sendmail(old_ipv4, current_ipv4, old_ipv6, current_ipv6, env, is_error=False
 变更时间: {current_time}
 
 【IPv4 地址】
-原IP地址: {old_ipv4 if old_ipv4 else '未知'}
-现IP地址: {current_ipv4 if current_ipv4 else '获取失败'}
+New IP地址: {current_ipv4 if current_ipv4 else '获取失败'}
+Old IP地址: {old_ipv4 if old_ipv4 else '未知'}
 """
         
         if env.ipv6_enable:
             content += f"""
 【IPv6 地址】
-原IP地址: {old_ipv6 if old_ipv6 else '未知'}
-现IP地址: {current_ipv6 if current_ipv6 else '获取失败'}
+New IP地址: {current_ipv6 if current_ipv6 else '获取失败'}
+Old IP地址: {old_ipv6 if old_ipv6 else '未知'}
 """
         
         content += f"""
